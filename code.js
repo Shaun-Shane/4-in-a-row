@@ -1,11 +1,13 @@
 const MAX_HEIGHT = 6;
 const MAX_WIDTH = 7;
 const EMPTY = 2;
-const INF = 100000;
+const INF = 1000000;
+const SEARCH_DEPTH = 6;
 
 var sdPlayer = 0; // 0 - yellow 1 - red
+var mode = 0; // 0 - alphaBeta，1 - minmax
 
-var disPlay = false; // 是否演示搜索过程
+var disPlay = true; // 是否演示搜索过程
 var gameOver = false;
 
 var table = [
@@ -21,7 +23,12 @@ var table = [
 var height = [0, 0, 0, 0, 0, 0, 0, 0]; // hight of every column
 
 // 交换走子方
-var changeSide = () => { sdPlayer ^= 1; };
+var changeSide = () => { sdPlayer ^= 1; setPlayerMessage(); };
+
+var setPlayerMessage = () => {
+    document.getElementById("color").setAttribute("class", sdPlayer == 0 ? "Yellow" : "Red");
+    document.getElementById("messages").innerHTML = sdPlayer == 0 ? "Yellow" : "Red";
+}
 
 // 通过 td-id 获得所在列
 var getColumn = (id) => {
@@ -32,6 +39,20 @@ var getColumn = (id) => {
 var canLink = (row, column) => {
     return 1 <= row && row <= MAX_HEIGHT && 1 <= column && column <= MAX_WIDTH
         && table[row][column] != EMPTY && table[row][column] != sdPlayer;
+}
+
+// 判断位置的颜色
+var isYellow = (row, column) => {
+    return 1 <= row && row <= MAX_HEIGHT && 1 <= column && column <= MAX_WIDTH
+        && table[row][column] == 0;
+}
+var isRed = (row, column) => {
+    return 1 <= row && row <= MAX_HEIGHT && 1 <= column && column <= MAX_WIDTH
+        && table[row][column] == 1;
+}
+var isEmpty = (row, column) => {
+    return 1 <= row && row <= MAX_HEIGHT && 1 <= column && column <= MAX_WIDTH
+        && table[row][column] == EMPTY;
 }
 
 var check = () => { // 判断是否连成四子
@@ -112,8 +133,142 @@ var undoDrop = async (column) => { // 在第 column 取消落子 并演示动画
     }, 600);
 }
 
+var makeMove = (column) => {
+    height[column]++;
+    table[height[column]][column] = sdPlayer;
+    changeSide(); // 交换走子方
+}
+
+var undoMakeMove = (column) => {
+    changeSide();
+    table[height[column]][column] = EMPTY;
+    height[column]--;
+}
+
+var delta = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]];
 var evaluate = () => {
-    return 0;
+    let vlPlayer = 0, vlAI = 0;
+    for (let column = 1; column <= MAX_WIDTH; column++)
+        for (let row = 1; row <= height[column]; row++) {
+            if (table[row][column] != 0) continue; // 对黄色进行判断
+            for (let i = 0; i < 8; i++) {
+                if (isYellow(row + delta[i][0], column + delta[i][1])
+                    && isYellow(row + 2 * delta[i][0], column + 2 * delta[i][1])
+                    && isEmpty(row + 3 * delta[i][0], column + 3 * delta[i][1]))
+                        vlPlayer += 720;
+                if (isYellow(row + delta[i][0], column + delta[i][1])
+                    && isEmpty(row + 2 * delta[i][0], column + 2 * delta[i][1])
+                    && isYellow(row + 3 * delta[i][0], column + 3 * delta[i][1]))
+                        vlPlayer += 720;
+                if (isYellow(row + delta[i][0], column + delta[i][1])
+                    && isEmpty(row + 2 * delta[i][0], column + 2 * delta[i][1])
+                    && isEmpty(row + 3 * delta[i][0], column + 3 * delta[i][1]))
+                        vlPlayer += 120;
+                if (isEmpty(row + delta[i][0], column + delta[i][1])
+                    && isYellow(row + 2 * delta[i][0], column + 2 * delta[i][1])
+                    && isEmpty(row + 3 * delta[i][0], column + 3 * delta[i][1]))
+                        vlPlayer += 120;
+                if (isEmpty(row + delta[i][0], column + delta[i][1])
+                    && isEmpty(row + 2 * delta[i][0], column + 2 * delta[i][1])
+                    && isYellow(row + 3 * delta[i][0], column + 3 * delta[i][1]))
+                        vlPlayer += 120;
+                if (isEmpty(row + delta[i][0], column + delta[i][1])
+                    && isEmpty(row + 2 * delta[i][0], column + 2 * delta[i][1])
+                    && isEmpty(row + 3 * delta[i][0], column + 3 * delta[i][1]))
+                        vlPlayer += 20;
+            }
+        }
+    for (let column = 1; column <= MAX_WIDTH; column++)
+        for (let row = 1; row <= height[column]; row++) {
+            if (table[row][column] != 1) continue; // 对红色进行判断
+            for (let i = 0; i < 8; i++) {
+                if (isRed(row + delta[i][0], column + delta[i][1])
+                    && isRed(row + 2 * delta[i][0], column + 2 * delta[i][1])
+                    && isEmpty(row + 3 * delta[i][0], column + 3 * delta[i][1]))
+                        vlAI += 720;
+                if (isRed(row + delta[i][0], column + delta[i][1])
+                    && isEmpty(row + 2 * delta[i][0], column + 2 * delta[i][1])
+                    && isRed(row + 3 * delta[i][0], column + 3 * delta[i][1]))
+                        vlAI += 720;
+                if (isRed(row + delta[i][0], column + delta[i][1])
+                    && isEmpty(row + 2 * delta[i][0], column + 2 * delta[i][1])
+                    && isEmpty(row + 3 * delta[i][0], column + 3 * delta[i][1]))
+                        vlAI += 120;
+                if (isEmpty(row + delta[i][0], column + delta[i][1])
+                    && isRed(row + 2 * delta[i][0], column + 2 * delta[i][1])
+                    && isEmpty(row + 3 * delta[i][0], column + 3 * delta[i][1]))
+                        vlAI += 120;
+                if (isEmpty(row + delta[i][0], column + delta[i][1])
+                    && isEmpty(row + 2 * delta[i][0], column + 2 * delta[i][1])
+                    && isRed(row + 3 * delta[i][0], column + 3 * delta[i][1]))
+                        vlAI += 120;
+                if (isEmpty(row + delta[i][0], column + delta[i][1])
+                    && isEmpty(row + 2 * delta[i][0], column + 2 * delta[i][1])
+                    && isEmpty(row + 3 * delta[i][0], column + 3 * delta[i][1]))
+                        vlAI += 20;
+            }
+        }
+    return sdPlayer == 0 ? vlPlayer - vlAI : vlAI - vlPlayer;
+}
+
+// 极大极小搜索
+var minMax = (depth) => {
+
+}
+
+// αβ剪枝
+var alphaBeta = (depth, alpha, beta) => {
+    let vlBest = -INF, mvBest = 1, vl;
+
+    if (check()) return -INF + SEARCH_DEPTH - depth; // 当前棋手失利
+    if (depth <= 0) return evaluate();
+
+    for (let column = 1; column <= MAX_WIDTH; column++) {
+        if (height[column] == MAX_HEIGHT) continue;
+        makeMove(column);
+        vl = -alphaBeta(depth - 1, -beta, -alpha);
+        undoMakeMove(column);
+
+        if (vl > vlBest) {
+            vlBest = vl, mvBest = column;
+            if (vl >= beta) break;
+            if (vl > alpha) alpha = vl;
+        }
+
+    }
+    return vlBest;
+}
+
+var searchRoot = (depth) => {
+    let vlBest = -INF, mvBest = 1, vl;
+    for (let column = 1; column <= MAX_WIDTH; column++) {
+        if (height[column] == MAX_HEIGHT) continue;
+        makeMove(column);
+        vl = -alphaBeta(depth - 1, -INF, -vlBest);
+        undoMakeMove(column);
+        if (vl > vlBest) {
+            vlBest = vl, mvBest = column;
+        }
+    }
+    return [vlBest, mvBest];
+}
+
+var searchMain = () => {
+    let vlBest, mvBest;
+    if (mode == 0) [vlBest, mvBest] = searchRoot(SEARCH_DEPTH, -INF, INF);
+    else minMax(SEARCH_DEPTH);
+
+    console.log(vlBest);
+
+    drop(mvBest).then(() => {
+        gameOver = check();
+        setTimeout(() => {
+            if (gameOver) {
+                if (sdPlayer == 1) alert("Yellow win");
+                else alert("Red win");
+            }
+        }, 200);
+    });
 }
 
 Array.from(document.getElementsByTagName("td")).forEach(item => {
@@ -128,6 +283,8 @@ Array.from(document.getElementsByTagName("td")).forEach(item => {
                 if (gameOver) {
                     if (sdPlayer == 1) alert("Yellow win");
                     else alert("Red win")
+                } else {
+                    searchMain();
                 }
             }, 200);
         })
@@ -135,7 +292,8 @@ Array.from(document.getElementsByTagName("td")).forEach(item => {
 });
 
 document.getElementById("restart").addEventListener('click', () => {
-    gameOver = false, disPlay = false;
+    gameOver = false, disPlay = false, mode = 0, sdPlayer = 0;
+    setPlayerMessage();
     for (let row = 1; row <= MAX_HEIGHT; row++) 
         for (let column = 1; column <= MAX_WIDTH; column++) {
             height[column] = 0;
@@ -144,3 +302,5 @@ document.getElementById("restart").addEventListener('click', () => {
         }
     console.log(table);
 })
+
+setPlayerMessage();
