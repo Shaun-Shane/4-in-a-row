@@ -2,13 +2,15 @@ const MAX_HEIGHT = 6;
 const MAX_WIDTH = 7;
 const EMPTY = 2;
 const INF = 1000000;
-const SEARCH_DEPTH = 6;
+const SEARCH_DEPTH = 2;
 
 var sdPlayer = 0; // 0 - yellow 1 - red
 var mode = 0; // 0 - alphaBeta，1 - minmax
 
-var disPlay = true; // 是否演示搜索过程
+var display = true; // 是否演示搜索过程
 var gameOver = false;
+
+var moveList = [];
 
 var table = [
     [2, 2, 2, 2, 2, 2, 2, 2],
@@ -21,6 +23,44 @@ var table = [
 ];
 
 var height = [0, 0, 0, 0, 0, 0, 0, 0]; // hight of every column
+
+function Move(type, depth, column, alpha, beta) {
+    this.type = type;
+    this.depth = depth;
+    this.column = column;
+    this.alpha = alpha;
+    this.beta = beta;
+}
+
+// 记录走法
+var recordMove = (type, depth, column, alpha, beta) => {
+    moveList.push(new Move(type, depth, column, alpha, beta));
+}
+
+// 演示
+var displayMove = async (mvBest) => {
+    (function Loop(i) {
+        setTimeout(() => {
+            if (moveList[i].type == 0) {
+                setTimeout(drop(moveList[i].column), 200);
+            } else {
+                setTimeout(undoDrop(moveList[i].column), 200);
+            }
+            if ((++i) < moveList.length) Loop(i);
+            else {
+                drop(mvBest).then(() => {
+                    gameOver = check();
+                    setTimeout(() => {
+                        if (gameOver) {
+                            if (sdPlayer == 1) alert("Yellow win");
+                            else alert("Red win");
+                        }
+                    }, 200);
+                });
+            }
+        }, 600);
+    })(0);
+}
 
 // 交换走子方
 var changeSide = () => { sdPlayer ^= 1; setPlayerMessage(); };
@@ -95,42 +135,41 @@ var drop = async (column) => { // 在第 column 落子 并演示动画
                 document.getElementById("color" + ((6 - currentHeight) * 10 + column)).setAttribute("class", "");
             }
 
-            if (currentHeight > height[column]) {
+            if (currentHeight > height[column] + 1) {
                 currentHeight--;
                 Loop();
+            } else {
+                height[column]++;
+                table[height[column]][column] = sdPlayer;
+                changeSide(); // 交换走子方
             }
         }, 20);
     })();
-    height[column]++;
-    table[height[column]][column] = sdPlayer;
-    changeSide(); // 交换走子方
     return true;
 }
 
 var undoDrop = async (column) => { // 在第 column 取消落子 并演示动画
-    setTimeout(() => {
-        changeSide(); // 交换走子方
+    changeSide(); // 交换走子方
 
-        let color = sdPlayer ? "Red" : "Yellow";
-        let currentHeight = height[column];
+    let color = sdPlayer ? "Red" : "Yellow";
+    let currentHeight = height[column];
 
-        (function Loop() {
-            setTimeout(() => {
-                document.getElementById("color" + ((7 - currentHeight) * 10 + column)).setAttribute("class", "");
+    (function Loop() {
+        setTimeout(() => {
+            document.getElementById("color" + ((7 - currentHeight) * 10 + column)).setAttribute("class", "");
+            if (currentHeight < MAX_HEIGHT) {
+                document.getElementById("color" + ((6 - currentHeight) * 10 + column)).setAttribute("class", color);
+            }
     
-                if (currentHeight < MAX_HEIGHT) {
-                    document.getElementById("color" + ((6 - currentHeight) * 10 + column)).setAttribute("class", color);
-                }
-    
-                if (currentHeight < MAX_HEIGHT) {
-                    currentHeight++;
-                    Loop();
-                }
-            }, 20);
-        })();
-        table[height[column]][column] = EMPTY;
-        height[column]--;
-    }, 600);
+            if (currentHeight < MAX_HEIGHT) {
+                currentHeight++;
+                Loop();
+            } else {
+                table[height[column]][column] = EMPTY;
+                height[column]--;
+            }
+        }, 20);
+    })();
 }
 
 var makeMove = (column) => {
@@ -225,9 +264,14 @@ var alphaBeta = (depth, alpha, beta) => {
 
     for (let column = 1; column <= MAX_WIDTH; column++) {
         if (height[column] == MAX_HEIGHT) continue;
+
         makeMove(column);
+        recordMove(0, depth, column, alpha, beta);
+
         vl = -alphaBeta(depth - 1, -beta, -alpha);
+
         undoMakeMove(column);
+        recordMove(1, depth, column, alpha, beta);
 
         if (vl > vlBest) {
             vlBest = vl, mvBest = column;
@@ -243,9 +287,15 @@ var searchRoot = (depth) => {
     let vlBest = -INF, mvBest = 1, vl;
     for (let column = 1; column <= MAX_WIDTH; column++) {
         if (height[column] == MAX_HEIGHT) continue;
+
         makeMove(column);
+        recordMove(0, depth, column, -INF, INF);
+
         vl = -alphaBeta(depth - 1, -INF, -vlBest);
+
         undoMakeMove(column);
+        recordMove(1, depth, column, -INF, INF);
+
         if (vl > vlBest) {
             vlBest = vl, mvBest = column;
         }
@@ -254,27 +304,32 @@ var searchRoot = (depth) => {
 }
 
 var searchMain = () => {
+    moveList.length = 0; // 清空数组
+
     let vlBest, mvBest;
     if (mode == 0) [vlBest, mvBest] = searchRoot(SEARCH_DEPTH, -INF, INF);
     else minMax(SEARCH_DEPTH);
 
     console.log(vlBest);
 
-    drop(mvBest).then(() => {
-        gameOver = check();
-        setTimeout(() => {
-            if (gameOver) {
-                if (sdPlayer == 1) alert("Yellow win");
-                else alert("Red win");
-            }
-        }, 200);
-    });
+    if (display) displayMove(mvBest);
+    else {
+        drop(mvBest).then(() => {
+            gameOver = check();
+            setTimeout(() => {
+                if (gameOver) {
+                    if (sdPlayer == 1) alert("Yellow win");
+                    else alert("Red win");
+                }
+            }, 200);
+        });
+    }
 }
 
 Array.from(document.getElementsByTagName("td")).forEach(item => {
     item.onclick = async () => {
         if (gameOver) return;
-        // if(sdPlayer) return;
+        if(sdPlayer) return;
         drop(getColumn(item.getAttribute("id"))).then((res) => {
             if (!res) alert("Full");
         }).then(() => {
@@ -292,7 +347,7 @@ Array.from(document.getElementsByTagName("td")).forEach(item => {
 });
 
 document.getElementById("restart").addEventListener('click', () => {
-    gameOver = false, disPlay = false, mode = 0, sdPlayer = 0;
+    gameOver = false, display = false, mode = 0, sdPlayer = 0;
     setPlayerMessage();
     for (let row = 1; row <= MAX_HEIGHT; row++) 
         for (let column = 1; column <= MAX_WIDTH; column++) {
