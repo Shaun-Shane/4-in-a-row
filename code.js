@@ -1,19 +1,19 @@
-const MAX_HEIGHT = 6;
-const MAX_WIDTH = 7;
-const EMPTY = 2;
-const INF = 1000000;
-var SEARCH_DEPTH = 4;
+const MAX_HEIGHT = 6; // 最大行数
+const MAX_WIDTH = 7; // 最大列数
+const EMPTY = 2; // table 中 0 表示黄、1 表示红、2 表示空
+const INF = 1000000; // 杀棋分值
+var SEARCH_DEPTH = 3; // 搜索最大深度 因为要演示，所以深度设得比较小
 
-var sdPlayer = 0; // 0 - yellow 1 - red
-var mode = 0; // 0 - alphaBeta，1 - minmax
+var sdPlayer = 0; // 0 - yellow 己方; 1 - red
+var mode = 0; // 0 - alphaBeta; 1 - minmax
 
-var gameOver = false;
+var gameOver = false; // 判断是否连成四子，并作相关处理
 var stopDisplay = true; // 是否演示搜索过程
 var reseting = false; // 用于判断是否还在重置
 
-var moveList = [];
+var moveList = []; // 记录搜索中的着法信息，以供搜索结束后演示
 
-var table = [
+var table = [ // 棋盘
     [2, 2, 2, 2, 2, 2, 2, 2],
     [2, 2, 2, 2, 2, 2, 2, 2],
     [2, 2, 2, 2, 2, 2, 2, 2],
@@ -23,9 +23,9 @@ var table = [
     [2, 2, 2, 2, 2, 2, 2, 2],
 ];
 
-var height = [0, 0, 0, 0, 0, 0, 0, 0]; // hight of every column
+var height = [0, 0, 0, 0, 0, 0, 0, 0]; // 每一列的高度
 
-function Move(type, depth, column, alpha, beta) {
+function Move(type, depth, column, alpha, beta) { // 走法信息
     this.type = type;
     this.depth = depth;
     this.column = column;
@@ -41,10 +41,13 @@ var recordMove = (type, depth, column, alpha, beta) => {
 // 演示
 var displayMove = (mvBest) => {
     console.log(moveList.length);
-    (function Loop(i) {
+    (function Loop(i) { // 递归实现循环 否则演示会出现时序错误
         setTimeout(() => {
+            // 1. 显示走法信息
             document.getElementById("info").innerHTML = `depth: ${moveList[i].depth} `
-            + `column: ${moveList[i].column} alpha/vl: ${moveList[i].alpha} beta: ${moveList[i].beta}`
+            + `column: ${moveList[i].column} alpha/vl: ${moveList[i].alpha} beta: ${moveList[i].beta}`; 
+
+            // 2.根据走法类型判断是走子还是落子
             if (moveList[i].type == 0) {
                 if (!stopDisplay) setTimeout(drop(moveList[i].column), 160);
             } else {
@@ -52,7 +55,7 @@ var displayMove = (mvBest) => {
             }
             if ((++i) >= moveList.length || stopDisplay) {
                 document.getElementById("info").innerHTML = "";
-                if (stopDisplay) {
+                if (stopDisplay) { // 如果强制结束搜索，需要走完剩下走法，以回到最初状态
                     for (let j = i - 1; j < moveList.length; j++) {
                         let column = moveList[j].column;
                         if (moveList[j].type == 0) makeMove(column);
@@ -62,7 +65,7 @@ var displayMove = (mvBest) => {
                         }
                     }
                 }
-
+                // 在最佳落子位置处落子
                 drop(mvBest);
                 gameOver = check();
                 setTimeout(() => {
@@ -80,6 +83,7 @@ var displayMove = (mvBest) => {
 // 交换走子方
 var changeSide = () => { sdPlayer ^= 1; setPlayerMessage(); };
 
+// 显示轮到谁行动
 var setPlayerMessage = () => {
     document.getElementById("color").setAttribute("class", sdPlayer == 0 ? "Yellow" : "Red");
     document.getElementById("messages").innerHTML = sdPlayer == 0 ? "Yellow" : "Red";
@@ -150,7 +154,7 @@ var drop = (column) => { // 在第 column 落子 并演示动画
                 document.getElementById("color" + ((6 - currentHeight) * 10 + column)).setAttribute("class", "");
             }
 
-            if (currentHeight > height[column]) {
+            if (currentHeight > height[column]) { // height[column] 在这一步前已加 1
                 currentHeight--;
                 Loop();
             }
@@ -185,25 +189,25 @@ var undoDrop = (column) => { // 在第 column 取消落子 并演示动画
     height[column]--;
 }
 
-var makeMove = (column) => {
+var makeMove = (column) => { // 落子 但不演示动画
     height[column]++;
     table[height[column]][column] = sdPlayer;
     changeSide(); // 交换走子方
 }
 
-var undoMakeMove = (column) => {
+var undoMakeMove = (column) => { // 取消落子 但不演示动画
     changeSide();
     table[height[column]][column] = EMPTY;
     height[column]--;
 }
 
-var delta = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]];
-var evaluate = () => {
+var delta = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]; // 方向数组
+var evaluate = () => { // 局面评估
     let vlPlayer = 0, vlAI = 0;
     for (let column = 1; column <= MAX_WIDTH; column++)
         for (let row = 1; row <= height[column]; row++) {
             if (table[row][column] != 0) continue; // 对黄色进行判断
-            for (let i = 0; i < 8; i++) {
+            for (let i = 0; i < 8; i++) { // 枚举 8 个方向
                 if (isYellow(row + delta[i][0], column + delta[i][1])
                     && isYellow(row + 2 * delta[i][0], column + 2 * delta[i][1])
                     && isEmpty(row + 3 * delta[i][0], column + 3 * delta[i][1])) {
@@ -236,7 +240,7 @@ var evaluate = () => {
     for (let column = 1; column <= MAX_WIDTH; column++)
         for (let row = 1; row <= height[column]; row++) {
             if (table[row][column] != 1) continue; // 对红色进行判断
-            for (let i = 0; i < 8; i++) {
+            for (let i = 0; i < 8; i++) { // 枚举 8 个方向
                 if (isRed(row + delta[i][0], column + delta[i][1])
                     && isRed(row + 2 * delta[i][0], column + 2 * delta[i][1])
                     && isEmpty(row + 3 * delta[i][0], column + 3 * delta[i][1])) {
@@ -338,6 +342,7 @@ var alphaBeta = (depth, alpha, beta) => {
     return vlBest;
 }
 
+// alpha-beta 搜索对根节点特判
 var searchRoot = (depth) => {
     let vlBest = -INF, mvBest = 1, vl;
     for (let column = 1; column <= MAX_WIDTH; column++) {
@@ -358,7 +363,8 @@ var searchRoot = (depth) => {
     return [vlBest, mvBest];
 }
 
-var searchMain = () => {
+// 搜索主函数 根据搜索类型 mode 进行 min-max 搜索或 α-β剪枝
+var searchMain = () => { 
     moveList.length = 0; // 清空数组
 
     let vlBest, mvBest;
@@ -380,6 +386,7 @@ var searchMain = () => {
     }
 }
 
+// 每个 td 元素添加点击事件，点击后在所属列落子
 Array.from(document.getElementsByTagName("td")).forEach(item => {
     item.onclick = () => {
         if (gameOver || sdPlayer || reseting) return;
@@ -392,28 +399,29 @@ Array.from(document.getElementsByTagName("td")).forEach(item => {
                     if (sdPlayer == 1) alert("Yellow win");
                     else alert("Red win")
                 } else {
-                    searchMain();
+                    searchMain(); // 若游戏未结束，执行搜索
                 }
             }, 200);
         }
     }
 });
 
+// 重置
 document.getElementById("restart").addEventListener('click', () => {
-    if (reseting) return;
-    gameOver = false;
+    if (reseting) return; // 如果正在重置，return
+    gameOver = false; // 游戏结束标时为 false
     
-    mode = 0;
+    mode = 0; // 模式设为 alpha-beta 剪枝模式
     document.getElementById("mode").innerHTML = "Choose minMax";
 
     if (stopDisplay) { // 没有演示 直接清零
         sdPlayer = 0
         for (let row = 1; row <= MAX_HEIGHT; row++) 
-        for (let column = 1; column <= MAX_WIDTH; column++) {
-            height[column] = 0;
-            table[row][column] = EMPTY;
-            document.getElementById("color" + (row * 10 + column)).setAttribute("class", "");
-        }
+            for (let column = 1; column <= MAX_WIDTH; column++) {
+                height[column] = 0;
+                table[row][column] = EMPTY;
+                document.getElementById("color" + (row * 10 + column)).setAttribute("class", "");
+            }
     } else { // 否则延时清零
         reseting = true;
         document.getElementById("info").style.css = "display: none";
@@ -429,7 +437,7 @@ document.getElementById("restart").addEventListener('click', () => {
         }, 600);
     }
     
-    stopDisplay = true;
+    stopDisplay = true; // 取消演示
     document.getElementById("stop-display").innerHTML = "Choose display search";
     
     setPlayerMessage();
