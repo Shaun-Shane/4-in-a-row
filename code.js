@@ -5,10 +5,11 @@ const INF = 1000000;
 var SEARCH_DEPTH = 4;
 
 var sdPlayer = 0; // 0 - yellow 1 - red
-var mode = 0; // 0 - alphaBeta，1 - minmax
+var mode = 1; // 0 - alphaBeta，1 - minmax
 
 var gameOver = false;
 var stopDisplay = true; // 是否演示搜索过程
+var reseting = false; // 用于判断是否还在重置
 
 var moveList = [];
 
@@ -61,7 +62,6 @@ var displayMove = async (mvBest) => {
 
                 drop(mvBest);
                 gameOver = check();
-                console.log(gameOver);
                 setTimeout(() => {
                     if (gameOver) {
                         if (sdPlayer == 1) alert("Yellow win");
@@ -268,7 +268,43 @@ var evaluate = () => {
 
 // 极大极小搜索
 var minMax = (depth) => {
+    let vlBest, mvBest = 1, vl, tmp;
 
+    if (check()) return [-INF + SEARCH_DEPTH - depth, 1];
+    if (depth <= 0) return [evaluate(), 1];
+
+    if (sdPlayer == 1) { // ai 方 极大值
+        vlBest = -INF;
+        for (let column = 1; column <= MAX_WIDTH; column++) {
+            if (height[column] == MAX_HEIGHT) continue;
+
+            makeMove(column);
+            if (!stopDisplay) recordMove(0, depth, column);
+
+            [vl, tmp] = minMax(depth - 1);
+
+            undoMakeMove(column);
+            if (!stopDisplay) recordMove(1, depth, column, vl);
+
+            if (vl > vlBest) vlBest = vl, mvBest = column;
+        }
+    } else {
+        vlBest = INF;
+        for (let column = 1; column <= MAX_WIDTH; column++) {
+            if (height[column] == MAX_HEIGHT) continue;
+
+            makeMove(column);
+            if (!stopDisplay) recordMove(0, depth, column);
+
+            [vl, tmp] = minMax(depth - 1);
+
+            undoMakeMove(column);
+            if (!stopDisplay) recordMove(1, depth, column, vl);
+
+            if (vl < vlBest) vlBest = vl, mvBest = column;
+        }
+    }
+    return [vlBest, mvBest];
 }
 
 // αβ剪枝
@@ -287,7 +323,7 @@ var alphaBeta = (depth, alpha, beta) => {
         vl = -alphaBeta(depth - 1, -beta, -alpha);
 
         undoMakeMove(column);
-        if (!stopDisplay) recordMove(1, depth, column, alpha, beta);
+        if (!stopDisplay) recordMove(1, depth, column, Math.max(alpha, vl), beta);
 
         if (vl > vlBest) {
             vlBest = vl, mvBest = column;
@@ -324,7 +360,7 @@ var searchMain = () => {
 
     let vlBest, mvBest;
     if (mode == 0) [vlBest, mvBest] = searchRoot(SEARCH_DEPTH, -INF, INF);
-    else minMax(SEARCH_DEPTH);
+    else [vlBest, mvBest] = minMax(SEARCH_DEPTH);
 
     console.log(vlBest);
 
@@ -343,13 +379,11 @@ var searchMain = () => {
 
 Array.from(document.getElementsByTagName("td")).forEach(item => {
     item.onclick = () => {
-        if (gameOver) return;
-        if(sdPlayer) return;
+        if (gameOver || sdPlayer || reseting) return;
         let res = drop(getColumn(item.getAttribute("id")));
         if (!res) alert("Full");
         else {
             gameOver = check(); // 判断是否连成 4 子
-            console.log(gameOver);
             setTimeout(() => {
                 if (gameOver) {
                     if (sdPlayer == 1) alert("Yellow win");
@@ -363,18 +397,39 @@ Array.from(document.getElementsByTagName("td")).forEach(item => {
 });
 
 document.getElementById("restart").addEventListener('click', () => {
-    gameOver = false, mode = 0, sdPlayer = 0;
+    if (reseting) return;
+    gameOver = false;
     
-    stopDisplay = true;
-    document.getElementById("stop-display").innerHTML = "Choose display search";
-    
-    setPlayerMessage();
-    for (let row = 1; row <= MAX_HEIGHT; row++) 
+    mode = 0;
+    document.getElementById("mode").innerHTML = "Choose minMax";
+
+    if (stopDisplay) { // 没有演示 直接清零
+        sdPlayer = 0
+        for (let row = 1; row <= MAX_HEIGHT; row++) 
         for (let column = 1; column <= MAX_WIDTH; column++) {
             height[column] = 0;
             table[row][column] = EMPTY;
             document.getElementById("color" + (row * 10 + column)).setAttribute("class", "");
         }
+    } else { // 否则延时清零
+        reseting = true;
+        setTimeout(() => {
+            sdPlayer = 0;
+            reseting = false;
+            for (let row = 1; row <= MAX_HEIGHT; row++) 
+            for (let column = 1; column <= MAX_WIDTH; column++) {
+                height[column] = 0;
+                table[row][column] = EMPTY;
+                document.getElementById("color" + (row * 10 + column)).setAttribute("class", "");
+            }
+        }, 600);
+    }
+    
+    stopDisplay = true;
+    document.getElementById("stop-display").innerHTML = "Choose display search";
+    
+    setPlayerMessage();
+    
     console.log(table);
 });
 
@@ -383,6 +438,12 @@ document.getElementById("stop-display").addEventListener('click', () => {
     stopDisplay ^= 1;
     if (stopDisplay) document.getElementById("stop-display").innerHTML = "Choose display search";
     else document.getElementById("stop-display").innerHTML = "Stop display search";
+});
+
+document.getElementById("mode").addEventListener('click', () =>{
+    mode ^= 1;
+    if (mode == 0) document.getElementById("mode").innerHTML = "Choose minMax";
+    else document.getElementById("mode").innerHTML = "Choose alphaBeta";
 });
 
 setPlayerMessage();
