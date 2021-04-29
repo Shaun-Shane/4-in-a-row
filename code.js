@@ -5,7 +5,7 @@ const INF = 1000000;
 var SEARCH_DEPTH = 4;
 
 var sdPlayer = 0; // 0 - yellow 1 - red
-var mode = 1; // 0 - alphaBeta，1 - minmax
+var mode = 0; // 0 - alphaBeta，1 - minmax
 
 var gameOver = false;
 var stopDisplay = true; // 是否演示搜索过程
@@ -39,16 +39,19 @@ var recordMove = (type, depth, column, alpha, beta) => {
 }
 
 // 演示
-var displayMove = async (mvBest) => {
+var displayMove = (mvBest) => {
     console.log(moveList.length);
     (function Loop(i) {
         setTimeout(() => {
+            document.getElementById("info").innerHTML = `depth: ${moveList[i].depth} `
+            + `column: ${moveList[i].column} alpha/vl: ${moveList[i].alpha} beta: ${moveList[i].beta}`
             if (moveList[i].type == 0) {
                 if (!stopDisplay) setTimeout(drop(moveList[i].column), 160);
             } else {
                 if (!stopDisplay) setTimeout(undoDrop(moveList[i].column), 160);
             }
             if ((++i) >= moveList.length || stopDisplay) {
+                document.getElementById("info").innerHTML = "";
                 if (stopDisplay) {
                     for (let j = i - 1; j < moveList.length; j++) {
                         let column = moveList[j].column;
@@ -279,12 +282,12 @@ var minMax = (depth) => {
             if (height[column] == MAX_HEIGHT) continue;
 
             makeMove(column);
-            if (!stopDisplay) recordMove(0, depth, column);
+            if (!stopDisplay) recordMove(0, depth, column, vlBest);
 
             [vl, tmp] = minMax(depth - 1);
 
             undoMakeMove(column);
-            if (!stopDisplay) recordMove(1, depth, column, vl);
+            if (!stopDisplay) recordMove(1, depth, column, Math.max(vl, vlBest));
 
             if (vl > vlBest) vlBest = vl, mvBest = column;
         }
@@ -294,12 +297,12 @@ var minMax = (depth) => {
             if (height[column] == MAX_HEIGHT) continue;
 
             makeMove(column);
-            if (!stopDisplay) recordMove(0, depth, column);
+            if (!stopDisplay) recordMove(0, depth, column, vlBest);
 
             [vl, tmp] = minMax(depth - 1);
 
             undoMakeMove(column);
-            if (!stopDisplay) recordMove(1, depth, column, vl);
+            if (!stopDisplay) recordMove(1, depth, column, Math.max(vl, vlBest));
 
             if (vl < vlBest) vlBest = vl, mvBest = column;
         }
@@ -413,6 +416,7 @@ document.getElementById("restart").addEventListener('click', () => {
         }
     } else { // 否则延时清零
         reseting = true;
+        document.getElementById("info").style.css = "display: none";
         setTimeout(() => {
             sdPlayer = 0;
             reseting = false;
@@ -436,8 +440,13 @@ document.getElementById("restart").addEventListener('click', () => {
 // 选择是否演示搜索过程。选择后可不进行演示或停止演示过程
 document.getElementById("stop-display").addEventListener('click', () => {
     stopDisplay ^= 1;
-    if (stopDisplay) document.getElementById("stop-display").innerHTML = "Choose display search";
-    else document.getElementById("stop-display").innerHTML = "Stop display search";
+    if (stopDisplay) {
+        document.getElementById("stop-display").innerHTML = "Choose display search";
+        document.getElementById("info").innerHTML = "";
+    }
+    else {
+        document.getElementById("stop-display").innerHTML = "Stop display search";
+    }
 });
 
 document.getElementById("mode").addEventListener('click', () =>{
