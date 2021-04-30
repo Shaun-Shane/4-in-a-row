@@ -2,7 +2,7 @@ const MAX_HEIGHT = 6; // 最大行数
 const MAX_WIDTH = 7; // 最大列数
 const EMPTY = 2; // table 中 0 表示黄、1 表示红、2 表示空
 const INF = 1000000; // 杀棋分值
-var SEARCH_DEPTH = 3; // 搜索最大深度 因为要演示，所以深度设得比较小
+var SEARCH_DEPTH = 4; // 搜索最大深度 演示时需设置较小深度
 
 var sdPlayer = 0; // 0 - yellow 己方; 1 - red
 var mode = 0; // 0 - alphaBeta; 1 - minmax
@@ -277,11 +277,16 @@ var evaluate = () => { // 局面评估
 var minMax = (depth) => {
     let vlBest, mvBest = 1, vl, tmp;
 
-    if (check()) return [-INF + SEARCH_DEPTH - depth, 1];
-    if (depth <= 0) return [evaluate(), 1];
+    if (depth <= 0) {
+        if (sdPlayer == 1) return [evaluate(), 1];
+        else return [-evaluate(), 1];
+    }
 
     if (sdPlayer == 1) { // ai 方 极大值
+        if (check()) return [-INF + SEARCH_DEPTH - depth, 1];
+
         vlBest = -INF;
+
         for (let column = 1; column <= MAX_WIDTH; column++) {
             if (height[column] == MAX_HEIGHT) continue;
 
@@ -296,6 +301,7 @@ var minMax = (depth) => {
             if (vl > vlBest) vlBest = vl, mvBest = column;
         }
     } else {
+        if (check()) return [INF - SEARCH_DEPTH - depth, 1];
         vlBest = INF;
         for (let column = 1; column <= MAX_WIDTH; column++) {
             if (height[column] == MAX_HEIGHT) continue;
@@ -461,6 +467,13 @@ document.getElementById("mode").addEventListener('click', () =>{
     mode ^= 1;
     if (mode == 0) document.getElementById("mode").innerHTML = "Choose minMax";
     else document.getElementById("mode").innerHTML = "Choose alphaBeta";
+});
+
+document.getElementById("sInput").addEventListener('change', () => {
+    let vl = parseInt(document.getElementById("sInput").value);
+    if (vl <= 0 || vl >= 20) alert("Search depth should be greater than 0 and less than 20");
+    SEARCH_DEPTH = vl;
+    console.log(SEARCH_DEPTH);
 });
 
 setPlayerMessage();

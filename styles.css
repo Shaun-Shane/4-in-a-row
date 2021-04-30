@@ -2,6 +2,10 @@
     display:none;
 } */
 
+#sInput {
+    width: 40px;
+}
+
 button {
     cursor: pointer;
 }
