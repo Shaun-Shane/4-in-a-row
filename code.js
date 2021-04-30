@@ -94,7 +94,7 @@ var getColumn = (id) => {
     return parseInt(id.substr(5, 2)) % 10;
 }
 
-// 判断一个位置是否在能构成连线
+// 判断一个位置是否能构成连线
 var canLink = (row, column) => {
     return 1 <= row && row <= MAX_HEIGHT && 1 <= column && column <= MAX_WIDTH
         && table[row][column] != EMPTY && table[row][column] != sdPlayer;
@@ -114,7 +114,7 @@ var isEmpty = (row, column) => {
         && table[row][column] == EMPTY;
 }
 
-var check = () => { // 判断是否连成四子
+var check = () => { // 判断是否连成四子 当前棋手为 sdPlayer ^ 1
     let cnt;
 
     // 通过已有棋子向四周寻找连线
